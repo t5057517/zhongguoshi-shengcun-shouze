@@ -1,0 +1,36 @@
+{
+  "name": "zhongguoshi-shengcun-shouze-pc",
+  "version": "0.1.0",
+  "description": "《中国式生存守则》PC 客户端（Electron）",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "author": "yifang",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.yifang.shengcunshouze",
+    "productName": "中国式生存守则",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*"
+    ],
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "renderer/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

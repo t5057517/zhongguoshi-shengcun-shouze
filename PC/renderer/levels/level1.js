@@ -107,20 +107,31 @@
       }
       blockLoop();
 
-      // 手机拖动
+      // 手机拖动（坐标换算：把屏幕坐标转成 375×600 画布坐标）
       let dragging = false, ox = 0, oy = 0;
+      function toCanvas(e) {
+        // 用 stage 的 boundingRect 精确换算（PC 端画布被 CSS scale，H5 端画布铺满窗口）
+        const el = G.stage || root;
+        const r = el.getBoundingClientRect();
+        return {
+          x: (e.clientX - r.left) * (DESIGN_W / r.width),
+          y: (e.clientY - r.top) * (DESIGN_W / r.width)
+        };
+      }
       phone.addEventListener('pointerdown', function (e) {
         dragging = true;
-        ox = e.clientX / getScale() - phoneX;
-        oy = e.clientY / getScale() - phoneY;
+        const p = toCanvas(e);
+        ox = p.x - phoneX;
+        oy = p.y - phoneY;
         phone.setPointerCapture(e.pointerId);
         phone.style.zIndex = 30;
         G.beep(520, 0.05);
       });
       phone.addEventListener('pointermove', function (e) {
         if (!dragging) return;
-        phoneX = e.clientX / getScale() - ox;
-        phoneY = e.clientY / getScale() - oy;
+        const p = toCanvas(e);
+        phoneX = p.x - ox;
+        phoneY = p.y - oy;
         placePhone();
       });
       phone.addEventListener('pointerup', function (e) {
@@ -129,10 +140,6 @@
         phone.style.zIndex = 10;
         judge();
       });
-
-      function getScale() {
-        return window.innerWidth / DESIGN_W;
-      }
 
       // 判定：手机中心下方 → 扫码点坐标 = 手机中心 + 向下(约 60px)
       function judge() {

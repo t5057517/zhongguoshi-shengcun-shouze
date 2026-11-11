@@ -14,3 +14,10 @@ desktop.ini
 
 # 本地预览临时文件
 *.log
+
+# Node / Electron 依赖与打包产物
+node_modules/
+PC/dist/
+PC/out/
+PC/release/
+*.asar
