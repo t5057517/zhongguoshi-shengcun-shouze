@@ -2,11 +2,14 @@ extends Control
 ## 中国式生存守则 — 主场景：关卡管理
 
 const Level1Scene := preload("res://scenes/Level1.tscn")
+const Level2Scene := preload("res://scenes/Level2.tscn")
+
+const LEVELS := [Level1Scene, Level2Scene]
 
 var current_level: Node = null
+var current_index := 0
 
 func _ready() -> void:
-	# 关卡列表（后续关卡逐个加入）
 	_load_level(0)
 
 func _load_level(index: int) -> void:
@@ -14,17 +17,13 @@ func _load_level(index: int) -> void:
 		current_level.queue_free()
 		current_level = null
 
-	match index:
-		0:
-			current_level = Level1Scene.instantiate()
-		_:
-			return
-
+	current_index = index % LEVELS.size()
+	current_level = LEVELS[current_index].instantiate()
 	add_child(current_level)
 	current_level.level_finished.connect(_on_level_finished)
 
 func _on_level_finished(result_id: String) -> void:
-	# 结果演出后，黑屏 0.5s 转场，再重新加载本关（后续关卡逐个接入）
+	# 结果演出后，黑屏 0.5s 转场，进入下一关（当前 4 关规划，暂实现 2 关，循环演示）
 	print("关卡结束，结果：", result_id)
 	var fade := ColorRect.new()
 	fade.color = Color(0, 0, 0, 1)
@@ -32,5 +31,5 @@ func _on_level_finished(result_id: String) -> void:
 	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(fade)
 	await get_tree().create_timer(0.5).timeout
-	_load_level(0)
+	_load_level(current_index + 1)
 	fade.queue_free()
