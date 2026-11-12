@@ -3,24 +3,26 @@ extends Control
 
 signal start_game
 
-@onready var start_btn: Panel = $StartBtn
-@onready var delete_btn: Panel = $DeleteBtn
 @onready var toast: Label = $Toast
 
+var start_rect := Rect2(480, 400, 320, 80)
+var delete_rect := Rect2(480, 520, 320, 60)
+
 func _ready() -> void:
-	start_btn.gui_input.connect(_on_start_gui_input)
-	delete_btn.gui_input.connect(_on_delete_gui_input)
-	start_btn.mouse_filter = Control.MOUSE_FILTER_STOP
-	delete_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	toast.visible = false
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-func _on_start_gui_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		start_game.emit()
+		var pos: Vector2 = event.position
+		if start_rect.has_point(pos):
+			start_game.emit()
+		elif delete_rect.has_point(pos):
+			_show_toast("删除存档功能暂未开放")
 
-func _on_delete_gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		toast.text = "删除存档功能暂未开放"
-		toast.visible = true
-		var tween := create_tween()
-		tween.tween_interval(1.2)
-		tween.tween_callback(func(): toast.visible = false)
+func _show_toast(msg: String) -> void:
+	toast.text = msg
+	toast.visible = true
+	var tween := create_tween()
+	tween.tween_interval(1.2)
+	tween.tween_callback(func(): toast.visible = false)

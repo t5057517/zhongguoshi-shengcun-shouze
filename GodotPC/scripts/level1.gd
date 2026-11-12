@@ -78,6 +78,23 @@ func _show_hand_blocking(on: bool) -> void:
 		hand.modulate.a = 0.35
 
 func _process(delta: float) -> void:
+	# 套餐滚动演出（card 结果时逐条滚动），即使 result 已设也要继续
+	if menu_playing or menu_rolling:
+		if menu_playing and not menu_rolling:
+			menu_timer += delta
+			if menu_timer >= MENU_STEP:
+				menu_timer = 0.0
+				menu_index += 1
+				if menu_index >= menu_items.size():
+					menu_playing = false
+					menu_rolling = true
+					var wait := create_tween()
+					wait.tween_interval(0.8)
+					wait.tween_callback(_finish_menu)
+				else:
+					_show_menu_item(menu_index)
+		return
+
 	if result != Result.NONE:
 		return
 
@@ -96,21 +113,6 @@ func _process(delta: float) -> void:
 		tony_timer = 0.0
 		tony_index = (tony_index + 1) % tony_words.size()
 		tony_bubble.text = tony_words[tony_index]
-
-	# 套餐滚动演出（card 结果时逐条滚动）
-	if menu_playing and not menu_rolling:
-		menu_timer += delta
-		if menu_timer >= MENU_STEP:
-			menu_timer = 0.0
-			menu_index += 1
-			if menu_index >= menu_items.size():
-				menu_playing = false
-				menu_rolling = true
-				var wait := create_tween()
-				wait.tween_interval(0.8)
-				wait.tween_callback(_finish_menu)
-			else:
-				_show_menu_item(menu_index)
 
 func _input(event: InputEvent) -> void:
 	if result != Result.NONE:
