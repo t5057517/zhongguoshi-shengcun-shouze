@@ -24,6 +24,13 @@ func _load_level(index: int) -> void:
 	current_level.level_finished.connect(_on_level_finished)
 
 func _on_level_finished(result_id: String) -> void:
-	# 结果演出后进入下一关（暂只有一关，先打印）
+	# 结果演出后，黑屏 0.5s 转场，再重新加载本关（后续关卡逐个接入）
 	print("关卡结束，结果：", result_id)
-	# 预留：黑屏转场 → 下一关
+	var fade := ColorRect.new()
+	fade.color = Color(0, 0, 0, 1)
+	fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(fade)
+	await get_tree().create_timer(0.5).timeout
+	_load_level(0)
+	fade.queue_free()

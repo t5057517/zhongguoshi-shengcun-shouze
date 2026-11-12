@@ -29,6 +29,14 @@ var tony_words := ["办卡打五折", "充值送护理"]
 var tony_index := 0
 var tony_timer := 0.0
 
+# 套餐滚动演出用
+var menu_items := ["剪发 ¥38", "洗剪吹 ¥68", "烫染会员卡 ¥1280", "至尊黑金卡 ¥6888"]
+var menu_index := 0
+var menu_playing := false
+var menu_rolling := false
+var menu_timer := 0.0
+const MENU_STEP := 0.4
+
 func _ready() -> void:
 	phone_start_pos = phone.position
 	_setup_qr()
@@ -89,6 +97,21 @@ func _process(delta: float) -> void:
 		tony_index = (tony_index + 1) % tony_words.size()
 		tony_bubble.text = tony_words[tony_index]
 
+	# 套餐滚动演出（card 结果时逐条滚动）
+	if menu_playing and not menu_rolling:
+		menu_timer += delta
+		if menu_timer >= MENU_STEP:
+			menu_timer = 0.0
+			menu_index += 1
+			if menu_index >= menu_items.size():
+				menu_playing = false
+				menu_rolling = true
+				var wait := create_tween()
+				wait.tween_interval(0.8)
+				wait.tween_callback(_finish_menu)
+			else:
+				_show_menu_item(menu_index)
+
 func _input(event: InputEvent) -> void:
 	if result != Result.NONE:
 		return
@@ -118,21 +141,35 @@ func _judge() -> void:
 	var in_single := single_qr.get_global_rect().has_point(scan_point)
 
 	if not blocking and in_single:
-		_finish(Result.SINGLE)
+		_finish_single()
 	elif in_card or (blocking and in_single):
-		_finish(Result.CARD)
+		_start_menu_show()
 	else:
 		var tween := create_tween()
 		tween.tween_property(phone, "position", phone_start_pos, 0.3)
 
-func _finish(r: int) -> void:
-	result = r
+func _finish_single() -> void:
+	result = Result.SINGLE
 	hand.modulate.a = 0.0
-	if r == Result.SINGLE:
-		result_label.text = "支付成功 ¥38"
-		result_label.add_theme_color_override("font_color", Color(0.15, 0.6, 0.3))
-		level_finished.emit("single")
-	else:
-		result_label.text = "套餐列表\n烫染会员卡 ¥1280\n至尊黑金卡 ¥6888"
-		result_label.add_theme_color_override("font_color", Color(0.75, 0.2, 0.15))
-		level_finished.emit("card")
+	result_label.text = "支付成功 ¥38"
+	result_label.add_theme_color_override("font_color", Color(0.15, 0.6, 0.3))
+	level_finished.emit("single")
+
+func _start_menu_show() -> void:
+	result = Result.CARD
+	hand.modulate.a = 0.0
+	result_label.text = "套餐列表："
+	result_label.add_theme_color_override("font_color", Color(0.75, 0.2, 0.15))
+	menu_index = 0
+	menu_playing = true
+	menu_rolling = false
+	menu_timer = 0.0
+	_show_menu_item(0)
+
+func _show_menu_item(i: int) -> void:
+	result_label.text = "套餐列表\n" + menu_items[i]
+
+func _finish_menu() -> void:
+	# 滚动到最后一条后停留一下，再真正结束关卡
+	result_label.text = "套餐列表\n至尊黑金卡 ¥6888"
+	level_finished.emit("card")
