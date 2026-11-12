@@ -15,9 +15,12 @@ desktop.ini
 # 本地预览临时文件
 *.log
 
-# Node / Electron 依赖与打包产物
-node_modules/
-PC/dist/
-PC/out/
-PC/release/
-*.asar
+# Godot 主程序（绿色软件本体，不进仓库）
+工具/
+
+# Godot 导入缓存与构建产物
+.godot/
+*.import
+*.translation
+export.cfg
+export_presets.cfg
