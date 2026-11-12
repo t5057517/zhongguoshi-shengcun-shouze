@@ -1,12 +1,11 @@
 extends Control
 ## 第一关：只剪一次（理发店收银台）
+## 统一使用全局坐标，拖动逻辑用 _unhandled_input 处理，避免子节点拦截。
 
 signal level_finished(result_id: String)
 
-# 判定结果
 enum Result { NONE, SINGLE, CARD }
 
-# 场景节点引用
 @onready var phone: Control = $Phone
 @onready var hand: Control = $TonyHand
 @onready var card_qr: Control = $CardQR
@@ -14,23 +13,18 @@ enum Result { NONE, SINGLE, CARD }
 @onready var tony_bubble: Label = $TonyBubble
 @onready var result_label: Label = $ResultLabel
 
-# 手机初始位置
 var phone_start_pos: Vector2
 
-# 遮挡状态
 var blocking := true
 var block_timer := 0.0
 const BLOCK_TIME := 1.5
 const REVEAL_TIME := 0.7
 
-# 拖动状态
 var dragging := false
 var drag_offset := Vector2.ZERO
 
-# 结果
 var result := Result.NONE
 
-# Tony 气泡轮播
 var tony_words := ["办卡打五折", "充值送护理"]
 var tony_index := 0
 var tony_timer := 0.0
@@ -39,21 +33,24 @@ func _ready() -> void:
 	phone_start_pos = phone.position
 	_setup_qr()
 	_show_hand_blocking(true)
+	# 根节点设为 IGNORE，让鼠标事件不被子节点或根节点消费，
+	# 统一走 _unhandled_input 处理
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for child in get_children():
+		if child is Control:
+			child.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 func _setup_qr() -> void:
-	# 装饰性二维码（不生成真实可识别二维码）
 	_draw_fake_qr(card_qr)
 	_draw_fake_qr(single_qr)
 
 func _draw_fake_qr(target: Control) -> void:
-	# 用 ColorRect 拼一个伪二维码图案
 	for child in target.get_children():
 		child.queue_free()
 	var grid := 7
 	var cell_size := target.size.x / grid
 	for y in grid:
 		for x in grid:
-			# 三个角留白模拟定位角
 			var corner := (x < 2 and y < 2) or (x >= grid - 2 and y < 2) or (x < 2 and y >= grid - 2)
 			if corner:
 				continue
@@ -65,21 +62,17 @@ func _draw_fake_qr(target: Control) -> void:
 				target.add_child(cell)
 
 func _show_hand_blocking(on: bool) -> void:
-	# Tony 的手遮挡/移开单次付款码
 	if on:
-		# 盖住单次付款码
 		hand.position = single_qr.position - Vector2(20, 20)
 		hand.modulate.a = 1.0
 	else:
-		# 移开
-		hand.position = single_qr.position + Vector2(140, -60)
+		hand.position = single_qr.position + Vector2(160, -60)
 		hand.modulate.a = 0.35
 
 func _process(delta: float) -> void:
 	if result != Result.NONE:
 		return
 
-	# 遮挡循环
 	block_timer += delta
 	if blocking and block_timer >= BLOCK_TIME:
 		blocking = false
@@ -90,53 +83,56 @@ func _process(delta: float) -> void:
 		block_timer = 0.0
 		_show_hand_blocking(true)
 
-	# Tony 气泡轮播
 	tony_timer += delta
 	if tony_timer >= 1.8:
 		tony_timer = 0.0
 		tony_index = (tony_index + 1) % tony_words.size()
 		tony_bubble.text = tony_words[tony_index]
 
-# ---- 拖动手机 ----
-func _gui_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	if result != Result.NONE:
 		return
+
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
-			dragging = true
-			drag_offset = phone.position - event.position
+			# 只在鼠标点在手机上时才开始拖动
+			if _global_mouse_in_phone():
+				dragging = true
+				drag_offset = phone.global_position - get_global_mouse_position()
 		else:
 			if dragging:
 				dragging = false
 				_judge()
 	elif event is InputEventMouseMotion and dragging:
-		phone.position = event.position + drag_offset
+		phone.global_position = get_global_mouse_position() + drag_offset
+
+func _global_mouse_in_phone() -> bool:
+	return phone.get_global_rect().has_point(get_global_mouse_position())
 
 func _judge() -> void:
-	# 扫码点：手机底部偏下
-	var scan_point := phone.position + Vector2(phone.size.x / 2, phone.size.y + 10)
-	var in_card := _point_in_rect(scan_point, card_qr)
-	var in_single := _point_in_rect(scan_point, single_qr)
+	# 扫码点：手机中心 + 向下偏移（手机底部靠下）
+	var phone_rect := phone.get_global_rect()
+	var scan_point := phone_rect.position + Vector2(phone_rect.size.x / 2.0, phone_rect.size.y + 12.0)
+
+	var in_card := card_qr.get_global_rect().has_point(scan_point)
+	var in_single := single_qr.get_global_rect().has_point(scan_point)
 
 	if not blocking and in_single:
 		_finish(Result.SINGLE)
 	elif in_card or (blocking and in_single):
 		_finish(Result.CARD)
 	else:
-		# 弹回原位
 		var tween := create_tween()
 		tween.tween_property(phone, "position", phone_start_pos, 0.3)
-
-func _point_in_rect(p: Vector2, rect: Control) -> bool:
-	var r := rect.get_global_rect()
-	return r.has_point(p)
 
 func _finish(r: int) -> void:
 	result = r
 	hand.modulate.a = 0.0
 	if r == Result.SINGLE:
 		result_label.text = "支付成功 ¥38"
+		result_label.add_theme_color_override("font_color", Color(0.15, 0.6, 0.3))
 		level_finished.emit("single")
 	else:
 		result_label.text = "套餐列表\n烫染会员卡 ¥1280\n至尊黑金卡 ¥6888"
+		result_label.add_theme_color_override("font_color", Color(0.75, 0.2, 0.15))
 		level_finished.emit("card")
